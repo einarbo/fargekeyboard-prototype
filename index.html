@@ -1,19 +1,111 @@
 <!DOCTYPE html>
 <html lang="no">
 <head>
-    <meta charset="UTF-8">
-    <title>MIDI Testside</title>
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fargekeyboard-test</title>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        margin: 40px;
+    }
+
+    h1 {
+        margin-bottom: 30px;
+    }
+
+    .button-row {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+    }
+
+    button {
+        border: none;
+        padding: 20px 25px;
+        font-size: 18px;
+        color: white;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: transform 0.1s;
+    }
+
+    button:active {
+        transform: scale(0.92);
+    }
+
+    .red     { background: #cc0000; }
+    .brown   { background: #8b4513; }
+    .gray    { background: #777777; }
+    .blue    { background: #1e4fa8; }
+    .black   { background: #000000; }
+    .yellow  { background: #e6b800; color: black; }
+    .green   { background: #2c8c2c; }
+
+    .audio-button {
+        background: #444;
+        padding: 15px 20px;
+        font-size: 16px;
+        margin-top: 10px;
+        border-radius: 8px;
+    }
+</style>
 </head>
+
 <body>
 
-<h1>MIDI + Audio Test</h1>
+<h1>Fargekeyboard-test</h1>
 
-<button id="midiButton">Send MIDI note 60</button>
-<button id="audioButton">Spill test-lyd</button>
+<div class="button-row">
+    <button class="red"    onclick="sendMidi(60)">Rød 60</button>
+    <button class="brown"  onclick="sendMidi(62)">Brun 62</button>
+    <button class="gray"   onclick="sendMidi(64)">Grå 64</button>
+    <button class="blue"   onclick="sendMidi(65)">Blå 65</button>
+    <button class="black"  onclick="sendMidi(67)">Svart 67</button>
+    <button class="yellow" onclick="sendMidi(69)">Gul 69</button>
+    <button class="green"  onclick="sendMidi(71)">Grønn 71</button>
+    <button class="red"    onclick="sendMidi(72)">Rød 72</button>
+</div>
 
-<p id="status">Status: venter…</p>
+<button class="audio-button" onclick="playAudio()">Spill lydfil</button>
 
-<script src="script.js"></script>
+<audio id="audio" src="lyd.mp3"></audio>
+
+<script>
+let midiOutput = null;
+
+// Start MIDI
+if (navigator.requestMIDIAccess) {
+    navigator.requestMIDIAccess().then(midiAccess => {
+        const outputs = Array.from(midiAccess.outputs.values());
+        if (outputs.length > 0) {
+            midiOutput = outputs[0];
+            console.log("Bruker MIDI‑utgang:", midiOutput.name);
+        } else {
+            console.log("Ingen MIDI‑utganger funnet");
+        }
+    });
+}
+
+// Spill MIDI-note
+function sendMidi(note) {
+    if (!midiOutput) {
+        console.log("Ingen MIDI‑output tilgjengelig");
+        return;
+    }
+    midiOutput.send([0x90, note, 100]); 
+    setTimeout(() => midiOutput.send([0x80, note, 0]), 300);
+}
+
+// Spill lydfil
+function playAudio() {
+    document.getElementById("audio").play();
+}
+</script>
+
 </body>
 </html>
