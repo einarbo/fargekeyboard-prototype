@@ -1,111 +1,138 @@
 <!DOCTYPE html>
 <html lang="no">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fargekeyboard-test</title>
-
-<style>
+  <meta charset="UTF-8" />
+  <title>Fargekeyboard – Hover + Sustain</title>
+  <style>
     body {
-        font-family: Arial, sans-serif;
-        text-align: center;
-        margin: 40px;
+      font-family: sans-serif;
+      background: #111;
+      color: white;
+      margin: 0;
+      padding: 20px;
     }
 
-    h1 {
-        margin-bottom: 30px;
-    }
-
-    .button-row {
-        display: flex;
-        justify-content: center;
-        gap: 12px;
-        margin-bottom: 30px;
-        flex-wrap: wrap;
+    .controls {
+      margin-bottom: 20px;
     }
 
     button {
-        border: none;
-        padding: 20px 25px;
-        font-size: 18px;
-        color: white;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: transform 0.1s;
+      font-size: 1.2em;
+      padding: 10px 20px;
+      margin-right: 10px;
+      cursor: pointer;
     }
 
-    button:active {
-        transform: scale(0.92);
+    .keyboard {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
     }
 
-    .red     { background: #cc0000; }
-    .brown   { background: #8b4513; }
-    .gray    { background: #777777; }
-    .blue    { background: #1e4fa8; }
-    .black   { background: #000000; }
-    .yellow  { background: #e6b800; color: black; }
-    .green   { background: #2c8c2c; }
-
-    .audio-button {
-        background: #444;
-        padding: 15px 20px;
-        font-size: 16px;
-        margin-top: 10px;
-        border-radius: 8px;
+    .key {
+      height: 150px;
+      border-radius: 16px;
     }
-</style>
+
+    .key.active {
+      outline: 6px solid white;
+      filter: brightness(130%);
+    }
+
+    .c { background: red; }
+    .d { background: orange; }
+    .e { background: yellow; }
+    .f { background: green; }
+    .g { background: cyan; }
+    .a { background: blue; }
+    .b { background: purple; }
+    .c2 { background: hotpink; }
+  </style>
 </head>
-
 <body>
 
-<h1>Fargekeyboard-test</h1>
+  <div class="controls">
+    <button id="sustainBtn">Sustain: AV</button>
+  </div>
 
-<div class="button-row">
-    <button class="red"    onclick="sendMidi(60)">Rød 60</button>
-    <button class="brown"  onclick="sendMidi(62)">Brun 62</button>
-    <button class="gray"   onclick="sendMidi(64)">Grå 64</button>
-    <button class="blue"   onclick="sendMidi(65)">Blå 65</button>
-    <button class="black"  onclick="sendMidi(67)">Svart 67</button>
-    <button class="yellow" onclick="sendMidi(69)">Gul 69</button>
-    <button class="green"  onclick="sendMidi(71)">Grønn 71</button>
-    <button class="red"    onclick="sendMidi(72)">Rød 72</button>
-</div>
+  <div class="keyboard">
+    <div class="key c"  data-freq="261.63"></div>
+    <div class="key d"  data-freq="293.66"></div>
+    <div class="key e"  data-freq="329.63"></div>
+    <div class="key f"  data-freq="349.23"></div>
+    <div class="key g"  data-freq="392.00"></div>
+    <div class="key a"  data-freq="440.00"></div>
+    <div class="key b"  data-freq="493.88"></div>
+    <div class="key c2" data-freq="523.25"></div>
+  </div>
 
-<button class="audio-button" onclick="playAudio()">Spill lydfil</button>
+  <script>
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-<audio id="audio" src="test-tone.wav"></audio>
+    let sustain = false;
+    let activeOscillators = new Map();
 
-<script>
-let midiOutput = null;
+    const sustainBtn = document.getElementById("sustainBtn");
+    sustainBtn.addEventListener("click", () => {
+      sustain = !sustain;
+      sustainBtn.textContent = `Sustain: ${sustain ? "PÅ" : "AV"}`;
 
-// Start MIDI
-if (navigator.requestMIDIAccess) {
-    navigator.requestMIDIAccess().then(midiAccess => {
-        const outputs = Array.from(midiAccess.outputs.values());
-        if (outputs.length > 0) {
-            midiOutput = outputs[0];
-            console.log("Bruker MIDI‑utgang:", midiOutput.name);
-        } else {
-            console.log("Ingen MIDI‑utganger funnet");
-        }
+      if (!sustain) {
+        stopAll();
+      }
     });
-}
 
-// Spill MIDI-note
-function sendMidi(note) {
-    if (!midiOutput) {
-        console.log("Ingen MIDI‑output tilgjengelig");
-        return;
+    function playNote(key, freq) {
+      if (activeOscillators.has(key)) return;
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.value = freq;
+
+      gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
+
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start();
+
+      activeOscillators.set(key, { osc, gain });
+      key.classList.add("active");
     }
-    midiOutput.send([0x90, note, 100]); 
-    setTimeout(() => midiOutput.send([0x80, note, 0]), 300);
-}
 
-// Spill lydfil
-function playAudio() {
-    document.getElementById("audio").play();
-}
-</script>
+    function stopNote(key) {
+      const data = activeOscillators.get(key);
+      if (!data) return;
+
+      const { osc, gain } = data;
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.2);
+
+      setTimeout(() => osc.stop(), 250);
+
+      activeOscillators.delete(key);
+      key.classList.remove("active");
+    }
+
+    function stopAll() {
+      activeOscillators.forEach((_, key) => stopNote(key));
+    }
+
+    document.querySelectorAll(".key").forEach(key => {
+      const freq = Number(key.dataset.freq);
+
+      key.addEventListener("pointerenter", () => {
+        audioCtx.resume();
+        playNote(key, freq);
+      });
+
+      key.addEventListener("pointerleave", () => {
+        if (!sustain) {
+          stopNote(key);
+        }
+      });
+    });
+  </script>
 
 </body>
 </html>
